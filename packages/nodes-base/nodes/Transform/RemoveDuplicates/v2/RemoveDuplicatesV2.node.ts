@@ -1,4 +1,4 @@
-import { NodeConnectionType, NodeOperationError, tryToParseDateTime } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError, tryToParseDateTime } from 'n8n-workflow';
 import type {
 	INodeTypeBaseDescription,
 	IExecuteFunctions,
@@ -14,7 +14,8 @@ import { removeDuplicateInputItems } from '../utils';
 const versionDescription: INodeTypeDescription = {
 	displayName: 'Remove Duplicates',
 	name: 'removeDuplicates',
-	icon: 'file:removeDuplicates.svg',
+	icon: 'node:remove-duplicates',
+	iconColor: 'azure',
 	group: ['transform'],
 	subtitle: '',
 	version: [2],
@@ -22,8 +23,8 @@ const versionDescription: INodeTypeDescription = {
 	defaults: {
 		name: 'Remove Duplicates',
 	},
-	inputs: [NodeConnectionType.Main],
-	outputs: [NodeConnectionType.Main],
+	inputs: [NodeConnectionTypes.Main],
+	outputs: [NodeConnectionTypes.Main],
 	outputNames: ['Kept', 'Discarded'],
 	hints: [
 		{

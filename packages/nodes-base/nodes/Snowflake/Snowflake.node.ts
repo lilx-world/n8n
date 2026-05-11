@@ -5,12 +5,20 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
+import { NodeConnectionTypes } from 'n8n-workflow';
 import snowflake from 'snowflake-sdk';
 
 import { getResolvables } from '@utils/utilities';
 
-import { connect, destroy, execute } from './GenericFunctions';
+import {
+	connect,
+	destroy,
+	escapeSnowflakeIdentifier,
+	escapeSnowflakeObjectIdentifier,
+	execute,
+	getConnectionOptions,
+	type SnowflakeCredential,
+} from './GenericFunctions';
 
 export class Snowflake implements INodeType {
 	description: INodeTypeDescription = {
@@ -24,8 +32,8 @@ export class Snowflake implements INodeType {
 			name: 'Snowflake',
 		},
 		usableAsTool: true,
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		parameterPane: 'wide',
 		credentials: [
 			{
@@ -164,16 +172,19 @@ export class Snowflake implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const credentials = (await this.getCredentials(
-			'snowflake',
-		)) as unknown as snowflake.ConnectionOptions;
-		const returnData: INodeExecutionData[] = [];
-		let responseData;
+		const credentials = await this.getCredentials<SnowflakeCredential>('snowflake');
+		// Disable logging - https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-logs#configure-the-default-logging-behavior
+		snowflake.configure({
+			logFilePath: 'STDOUT',
+			logLevel: 'OFF',
+		});
 
-		const connection = snowflake.createConnection(credentials);
+		const connectionOptions = getConnectionOptions(credentials);
+		const connection = snowflake.createConnection(connectionOptions);
 
 		await connect(connection);
 
+		let returnData: INodeExecutionData[] = [];
 		const items = this.getInputData();
 		const operation = this.getNodeParameter('operation', 0);
 
@@ -189,12 +200,12 @@ export class Snowflake implements INodeType {
 					query = query.replace(resolvable, this.evaluateExpression(resolvable, i) as string);
 				}
 
-				responseData = await execute(connection, query, []);
+				const responseData = await execute(connection, query, []);
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(responseData as IDataObject[]),
 					{ itemData: { item: i } },
 				);
-				returnData.push(...executionData);
+				returnData = returnData.concat(executionData);
 			}
 		}
 
@@ -206,18 +217,18 @@ export class Snowflake implements INodeType {
 			const table = this.getNodeParameter('table', 0) as string;
 			const columnString = this.getNodeParameter('columns', 0) as string;
 			const columns = columnString.split(',').map((column) => column.trim());
-			const query = `INSERT INTO ${table}(${columns.join(',')}) VALUES (${columns
-				.map((_column) => '?')
-				.join(',')})`;
+			const quotedTable = escapeSnowflakeObjectIdentifier(table);
+			const quotedColumns = columns.map(escapeSnowflakeIdentifier);
+			const query = `INSERT INTO ${quotedTable} (${quotedColumns.join(',')}) VALUES (${columns.map(() => '?').join(',')})`;
 			const data = this.helpers.copyInputItems(items, columns);
-			const binds = data.map((element) => Object.values(element));
+			const binds = data.map((element) => [...Object.values(element)]);
 			await execute(connection, query, binds as unknown as snowflake.InsertBinds);
 			data.forEach((d, i) => {
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(d),
 					{ itemData: { item: i } },
 				);
-				returnData.push(...executionData);
+				returnData = returnData.concat(executionData);
 			});
 		}
 
@@ -235,11 +246,20 @@ export class Snowflake implements INodeType {
 				columns.unshift(updateKey);
 			}
 
-			const query = `UPDATE ${table} SET ${columns
-				.map((column) => `${column} = ?`)
-				.join(',')} WHERE ${updateKey} = ?;`;
+			const quotedTable = escapeSnowflakeObjectIdentifier(table);
+			const quotedColumns = columns.map(escapeSnowflakeIdentifier);
+			const quotedUpdateKey = escapeSnowflakeIdentifier(updateKey);
+			const query = `UPDATE ${quotedTable} SET ${quotedColumns.map((col) => `${col} = ?`).join(',')} WHERE ${quotedUpdateKey} = ?;`;
 			const data = this.helpers.copyInputItems(items, columns);
-			const binds = data.map((element) => Object.values(element).concat(element[updateKey]));
+			const binds = data.map((element) => {
+				const values = Object.values(element);
+				const rowBinds: unknown[] = [];
+				columns.forEach((_col, idx) => {
+					rowBinds.push(values[idx]);
+				});
+				rowBinds.push(element[updateKey]);
+				return rowBinds;
+			});
 			for (let i = 0; i < binds.length; i++) {
 				await execute(connection, query, binds[i] as unknown as snowflake.InsertBinds);
 			}
@@ -248,7 +268,7 @@ export class Snowflake implements INodeType {
 					this.helpers.returnJsonArray(d),
 					{ itemData: { item: i } },
 				);
-				returnData.push(...executionData);
+				returnData = returnData.concat(executionData);
 			});
 		}
 

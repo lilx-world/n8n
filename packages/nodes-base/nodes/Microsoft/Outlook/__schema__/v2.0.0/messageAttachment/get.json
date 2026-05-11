@@ -4,14 +4,20 @@
         "@odata.context": {
             "type": "string"
         },
+        "@odata.mediaContentType": {
+            "type": "string"
+        },
         "@odata.type": {
             "type": "string"
         },
-        "@odata.mediaContentType": {
+        "contentType": {
             "type": "string"
         },
         "id": {
             "type": "string"
+        },
+        "isInline": {
+            "type": "boolean"
         },
         "lastModifiedDateTime": {
             "type": "string"
@@ -22,11 +28,26 @@
         "size": {
             "type": "integer"
         },
-        "isInline": {
-            "type": "boolean"
+        "value": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "@odata.mediaContentType": {
+                        "type": "string"
+                    },
+                    "@odata.type": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            }
         }
     },
-    "required": [
-        "@odata.context"
-    ]
+    "version": 8
 }

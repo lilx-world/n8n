@@ -9,7 +9,7 @@ import {
 	type INodeType,
 	type INodeTypeDescription,
 	type IPairedItemData,
-	NodeConnectionType,
+	NodeConnectionTypes,
 	type NodeExecutionHint,
 } from 'n8n-workflow';
 
@@ -20,7 +20,8 @@ export class Aggregate implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Aggregate',
 		name: 'aggregate',
-		icon: 'file:aggregate.svg',
+		icon: 'node:aggregate',
+		iconColor: 'orange-red',
 		group: ['transform'],
 		subtitle: '',
 		version: 1,
@@ -28,8 +29,22 @@ export class Aggregate implements INodeType {
 		defaults: {
 			name: 'Aggregate',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
+		builderHint: {
+			searchHint:
+				'Need to combine items from multiple branches? Use merge node. This nodes combines all items from one branch into one item.',
+			relatedNodes: [
+				{
+					nodeType: 'n8n-nodes-base.merge',
+					relationHint: 'For multiple branches',
+				},
+				{
+					nodeType: 'n8n-nodes-base.splitOut',
+					relationHint: 'Reverse operation',
+				},
+			],
+		},
 		properties: [
 			{
 				displayName: 'Aggregate',

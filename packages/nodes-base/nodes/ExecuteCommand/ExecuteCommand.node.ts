@@ -5,7 +5,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 export interface IExecReturnData {
 	exitCode: number;
@@ -46,18 +46,17 @@ export class ExecuteCommand implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Execute Command',
 		name: 'executeCommand',
-		icon: 'fa:terminal',
+		icon: 'node:execute-command',
 		iconColor: 'crimson',
 		group: ['transform'],
 		version: 1,
 		description: 'Executes a command on the host',
 		defaults: {
 			name: 'Execute Command',
-			color: '#886644',
 		},
 		usableAsTool: true,
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		properties: [
 			{
 				displayName: 'Execute Once',

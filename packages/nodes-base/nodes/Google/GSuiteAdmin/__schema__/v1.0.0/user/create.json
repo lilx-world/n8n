@@ -1,37 +1,7 @@
 {
     "type": "object",
     "properties": {
-        "kind": {
-            "type": "string"
-        },
-        "id": {
-            "type": "string"
-        },
-        "etag": {
-            "type": "string"
-        },
-        "primaryEmail": {
-            "type": "string"
-        },
-        "name": {
-            "type": "object",
-            "properties": {
-                "givenName": {
-                    "type": "string"
-                },
-                "familyName": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "givenName",
-                "familyName"
-            ]
-        },
-        "isAdmin": {
-            "type": "boolean"
-        },
-        "isDelegatedAdmin": {
+        "changePasswordAtNextLogin": {
             "type": "boolean"
         },
         "creationTime": {
@@ -40,11 +10,41 @@
         "customerId": {
             "type": "string"
         },
-        "orgUnitPath": {
+        "etag": {
             "type": "string"
+        },
+        "id": {
+            "type": "string"
+        },
+        "isAdmin": {
+            "type": "boolean"
+        },
+        "isDelegatedAdmin": {
+            "type": "boolean"
         },
         "isMailboxSetup": {
             "type": "boolean"
+        },
+        "kind": {
+            "type": "string"
+        },
+        "name": {
+            "type": "object",
+            "properties": {
+                "familyName": {
+                    "type": "string"
+                },
+                "givenName": {
+                    "type": "string"
+                }
+            }
+        },
+        "orgUnitPath": {
+            "type": "string"
+        },
+        "primaryEmail": {
+            "type": "string"
         }
-    }
+    },
+    "version": 2
 }

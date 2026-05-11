@@ -9,12 +9,11 @@ import type {
 	Workflow,
 	WorkflowExecuteMode,
 	ICredentialsHelper,
-	Expression,
 	INodeType,
 	INodeTypes,
 	ICredentialDataDecryptedObject,
 } from 'n8n-workflow';
-import { ApplicationError, NodeConnectionType } from 'n8n-workflow';
+import { ApplicationError, NodeConnectionTypes, type WorkflowExpression } from 'n8n-workflow';
 
 import { describeCommonTests } from './shared-tests';
 import { ExecuteSingleContext } from '../execute-single-context';
@@ -38,7 +37,7 @@ describe('ExecuteSingleContext', () => {
 		},
 	});
 	const nodeTypes = mock<INodeTypes>();
-	const expression = mock<Expression>();
+	const expression = mock<WorkflowExpression>();
 	const workflow = mock<Workflow>({ expression, nodeTypes });
 	const node = mock<INode>({
 		name: 'Test Node',
@@ -52,7 +51,11 @@ describe('ExecuteSingleContext', () => {
 		testParameter: 'testValue',
 	};
 	const credentialsHelper = mock<ICredentialsHelper>();
-	const additionalData = mock<IWorkflowExecuteAdditionalData>({ credentialsHelper });
+	const additionalData = mock<IWorkflowExecuteAdditionalData>({
+		credentialsHelper,
+		webhookWaitingBaseUrl: 'http://localhost:5678/webhook-waiting',
+		formWaitingBaseUrl: 'http://localhost:5678/form-waiting',
+	});
 	const mode: WorkflowExecuteMode = 'manual';
 	const runExecutionData = mock<IRunExecutionData>();
 	const connectionInputData: INodeExecutionData[] = [];
@@ -91,7 +94,7 @@ describe('ExecuteSingleContext', () => {
 
 	describe('getInputData', () => {
 		const inputIndex = 0;
-		const connectionType = NodeConnectionType.Main;
+		const connectionType = NodeConnectionTypes.Main;
 
 		afterEach(() => {
 			inputData[connectionType] = [[{ json: { test: 'data' } }]];
@@ -104,12 +107,10 @@ describe('ExecuteSingleContext', () => {
 		});
 
 		it('should return an empty object if the input name does not exist', () => {
-			const connectionType = 'nonExistent';
+			const connectionType = 'nonExistent' as typeof NodeConnectionTypes.Main;
 			const expectedData = { json: {} };
 
-			expect(
-				executeSingleContext.getInputData(inputIndex, connectionType as NodeConnectionType),
-			).toEqual(expectedData);
+			expect(executeSingleContext.getInputData(inputIndex, connectionType)).toEqual(expectedData);
 		});
 
 		it('should throw an error if the input index is out of range', () => {

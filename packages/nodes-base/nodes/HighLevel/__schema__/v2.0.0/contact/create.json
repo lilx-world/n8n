@@ -1,47 +1,30 @@
 {
     "type": "object",
     "properties": {
-        "id": {
-            "type": "string"
-        },
-        "tags": {
+        "additionalEmails": {
             "type": "array",
             "items": {
-                "type": "string"
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    }
+                }
             }
         },
-        "dateAdded": {
-            "type": "string"
-        },
-        "type": {
-            "type": "string"
-        },
-        "locationId": {
-            "type": "string"
-        },
-        "firstName": {
-            "type": "string"
-        },
-        "firstNameLowerCase": {
-            "type": "string"
-        },
-        "fullNameLowerCase": {
-            "type": "string"
-        },
-        "lastName": {
-            "type": "string"
-        },
-        "lastNameLowerCase": {
-            "type": "string"
-        },
-        "email": {
-            "type": "string"
-        },
-        "emailLowerCase": {
-            "type": "string"
-        },
-        "phone": {
-            "type": "string"
+        "additionalPhones": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "phone": {
+                        "type": "string"
+                    },
+                    "phoneLabel": {
+                        "type": "null"
+                    }
+                }
+            }
         },
         "country": {
             "type": "string"
@@ -49,10 +32,10 @@
         "createdBy": {
             "type": "object",
             "properties": {
-                "source": {
+                "channel": {
                     "type": "string"
                 },
-                "channel": {
+                "source": {
                     "type": "string"
                 },
                 "sourceId": {
@@ -61,21 +44,6 @@
                 "timestamp": {
                     "type": "string"
                 }
-            },
-            "required": [
-                "source",
-                "channel",
-                "sourceId",
-                "timestamp"
-            ]
-        },
-        "dateUpdated": {
-            "type": "string"
-        },
-        "followers": {
-            "type": "array",
-            "items": {
-                "type": "string"
             }
         },
         "customFields": {
@@ -86,11 +54,60 @@
                     "id": {
                         "type": "string"
                     }
-                },
-                "required": [
-                    "id"
-                ]
+                }
             }
+        },
+        "dateAdded": {
+            "type": "string"
+        },
+        "dateUpdated": {
+            "type": "string"
+        },
+        "email": {
+            "type": "string"
+        },
+        "emailLowerCase": {
+            "type": "string"
+        },
+        "firstName": {
+            "type": "string"
+        },
+        "firstNameLowerCase": {
+            "type": "string"
+        },
+        "followers": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "fullNameLowerCase": {
+            "type": "string"
+        },
+        "id": {
+            "type": "string"
+        },
+        "lastName": {
+            "type": "string"
+        },
+        "lastNameLowerCase": {
+            "type": "string"
+        },
+        "locationId": {
+            "type": "string"
+        },
+        "source": {
+            "type": "string"
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "type": {
+            "type": "string"
         }
-    }
+    },
+    "version": 3
 }

@@ -1,10 +1,10 @@
-import { mock } from 'jest-mock-extended';
 import { normalizeItems } from 'n8n-core';
 import {
 	ApplicationError,
-	type IExecuteFunctions,
+	type ISupplyDataFunctions,
 	type IWorkflowDataProxyData,
 } from 'n8n-workflow';
+import { mock } from 'vitest-mock-extended';
 
 import { N8nItemListOutputParser } from '@utils/output_parsers/N8nItemListOutputParser';
 
@@ -12,7 +12,7 @@ import { OutputParserItemList } from '../OutputParserItemList.node';
 
 describe('OutputParserItemList', () => {
 	let outputParser: OutputParserItemList;
-	const thisArg = mock<IExecuteFunctions>({
+	const thisArg = mock<ISupplyDataFunctions>({
 		helpers: { normalizeItems },
 	});
 	const workflowDataProxy = mock<IWorkflowDataProxyData>({ $input: mock() });

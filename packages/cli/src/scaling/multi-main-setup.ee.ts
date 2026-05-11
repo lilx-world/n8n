@@ -1,25 +1,31 @@
+import { TypedEmitter } from '@/typed-emitter';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { Service } from '@n8n/di';
-import { InstanceSettings, Logger } from 'n8n-core';
+import { Time } from '@n8n/constants';
+import { MultiMainMetadata } from '@n8n/decorators';
+import { Container, Service } from '@n8n/di';
+import { ErrorReporter, InstanceSettings } from 'n8n-core';
 
-import config from '@/config';
-import { Time } from '@/constants';
+import type * as LeaderElectionClientModule from '@/scaling/leader-election-client';
 import { Publisher } from '@/scaling/pubsub/publisher.service';
 import { RedisClientService } from '@/services/redis-client.service';
-import { TypedEmitter } from '@/typed-emitter';
+
+import { MultiMainSetupLegacy } from './multi-main-setup-legacy';
+import type { MultiMainStrategy } from './multi-main-setup.types';
+import { MultiMainSetupV2 } from './multi-main-setup-v2';
 
 type MultiMainEvents = {
 	/**
 	 * Emitted when this instance loses leadership. In response, its various
 	 * services will stop triggers, pollers, pruning, wait-tracking, license
-	 * renewal, queue recovery, etc.
+	 * renewal, queue recovery, insights, etc.
 	 */
 	'leader-stepdown': never;
 
 	/**
 	 * Emitted when this instance gains leadership. In response, its various
 	 * services will start triggers, pollers, pruning, wait-tracking, license
-	 * renewal, queue recovery, etc.
+	 * renewal, queue recovery, insights, etc.
 	 */
 	'leader-takeover': never;
 };
@@ -27,103 +33,75 @@ type MultiMainEvents = {
 /** Designates leader and followers when running multiple main processes. */
 @Service()
 export class MultiMainSetup extends TypedEmitter<MultiMainEvents> {
+	private readonly strategy: MultiMainStrategy;
+
+	private leaderCheckInterval: NodeJS.Timeout | undefined;
+
 	constructor(
 		private readonly logger: Logger,
 		private readonly instanceSettings: InstanceSettings,
+		private readonly globalConfig: GlobalConfig,
+		private readonly metadata: MultiMainMetadata,
+		private readonly errorReporter: ErrorReporter,
 		private readonly publisher: Publisher,
 		private readonly redisClientService: RedisClientService,
-		private readonly globalConfig: GlobalConfig,
 	) {
 		super();
 		this.logger = this.logger.scoped(['scaling', 'multi-main-setup']);
+
+		const emitFn = (event: 'leader-takeover' | 'leader-stepdown') => this.emit(event);
+
+		if (this.globalConfig.multiMainSetup.newLeaderElection) {
+			const { LeaderElectionClient } =
+				require('@/scaling/leader-election-client') as typeof LeaderElectionClientModule;
+			const client = Container.get(LeaderElectionClient);
+			this.strategy = new MultiMainSetupV2(
+				this.logger,
+				this.instanceSettings,
+				this.errorReporter,
+				client,
+				emitFn,
+			);
+		} else {
+			this.strategy = new MultiMainSetupLegacy(
+				this.logger,
+				this.instanceSettings,
+				this.publisher,
+				this.redisClientService,
+				this.globalConfig,
+				this.errorReporter,
+				emitFn,
+			);
+		}
 	}
 
-	private leaderKey: string;
-
-	private readonly leaderKeyTtl = this.globalConfig.multiMainSetup.ttl;
-
-	private leaderCheckInterval: NodeJS.Timer | undefined;
-
 	async init() {
-		const prefix = config.getEnv('redis.prefix');
-		const validPrefix = this.redisClientService.toValidPrefix(prefix);
-		this.leaderKey = validPrefix + ':main_instance_leader';
-
-		await this.tryBecomeLeader(); // prevent initial wait
+		await this.strategy.init();
 
 		this.leaderCheckInterval = setInterval(async () => {
-			await this.checkLeader();
+			await this.strategy.checkLeader();
 		}, this.globalConfig.multiMainSetup.interval * Time.seconds.toMilliseconds);
 	}
 
+	// @TODO: Use `@OnShutdown()` decorator
 	async shutdown() {
 		clearInterval(this.leaderCheckInterval);
 
-		const { isLeader } = this.instanceSettings;
-
-		if (isLeader) await this.publisher.clear(this.leaderKey);
+		await this.strategy.shutdown();
 	}
 
-	private async checkLeader() {
-		const leaderId = await this.publisher.get(this.leaderKey);
-
-		const { hostId } = this.instanceSettings;
-
-		if (leaderId === hostId) {
-			this.logger.debug(`[Instance ID ${hostId}] Leader is this instance`);
-
-			await this.publisher.setExpiration(this.leaderKey, this.leaderKeyTtl);
-
-			return;
-		}
-
-		if (leaderId && leaderId !== hostId) {
-			this.logger.debug(`[Instance ID ${hostId}] Leader is other instance "${leaderId}"`);
-
-			if (this.instanceSettings.isLeader) {
-				this.instanceSettings.markAsFollower();
-
-				this.emit('leader-stepdown');
-
-				this.logger.warn('[Multi-main setup] Leader failed to renew leader key');
-			}
-
-			return;
-		}
-
-		if (!leaderId) {
-			this.logger.debug(
-				`[Instance ID ${hostId}] Leadership vacant, attempting to become leader...`,
-			);
-
-			this.instanceSettings.markAsFollower();
-
-			this.emit('leader-stepdown');
-
-			await this.tryBecomeLeader();
-		}
+	async fetchLeaderKey(): Promise<string | null> {
+		return await this.strategy.fetchLeaderKey();
 	}
 
-	private async tryBecomeLeader() {
-		const { hostId } = this.instanceSettings;
+	registerEventHandlers() {
+		const handlers = this.metadata.getHandlers();
 
-		// this can only succeed if leadership is currently vacant
-		const keySetSuccessfully = await this.publisher.setIfNotExists(this.leaderKey, hostId);
-
-		if (keySetSuccessfully) {
-			this.logger.debug(`[Instance ID ${hostId}] Leader is now this instance`);
-
-			this.instanceSettings.markAsLeader();
-
-			await this.publisher.setExpiration(this.leaderKey, this.leaderKeyTtl);
-
-			this.emit('leader-takeover');
-		} else {
-			this.instanceSettings.markAsFollower();
+		for (const { eventHandlerClass, methodName, eventName } of handlers) {
+			const instance = Container.get(eventHandlerClass);
+			this.on(eventName, async () => {
+				return await instance[methodName].call(instance);
+			});
 		}
-	}
-
-	async fetchLeaderKey() {
-		return await this.publisher.get(this.leaderKey);
 	}
 }

@@ -7,7 +7,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionType, jsonParse } from 'n8n-workflow';
+import { NodeConnectionTypes, jsonParse } from 'n8n-workflow';
 
 import { collectionFields, collectionOperations } from './CollectionDescription';
 import { documentFields, documentOperations } from './DocumentDescription';
@@ -17,6 +17,7 @@ import {
 	googleApiRequestAllItems,
 	jsonToDocument,
 } from './GenericFunctions';
+import { generatePairedItemData } from '../../../../utils/utilities';
 
 export class GoogleFirebaseCloudFirestore implements INodeType {
 	description: INodeTypeDescription = {
@@ -28,12 +29,13 @@ export class GoogleFirebaseCloudFirestore implements INodeType {
 		version: [1, 1.1],
 		subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
 		description: 'Interact with Google Firebase - Cloud Firestore API',
+		schemaPath: 'Google/Firebase/CloudFirestore',
 		defaults: {
 			name: 'Google Cloud Firestore',
 		},
 		usableAsTool: true,
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'googleFirebaseCloudFirestoreOAuth2Api',
@@ -120,7 +122,7 @@ export class GoogleFirebaseCloudFirestore implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-
+		const itemData = generatePairedItemData(items.length);
 		const returnData: INodeExecutionData[] = [];
 		let responseData;
 
@@ -135,7 +137,7 @@ export class GoogleFirebaseCloudFirestore implements INodeType {
 		if (nodeVersion >= 1.1) {
 			itemsLength = items.length;
 		} else {
-			fallbackPairedItems = [];
+			fallbackPairedItems = generatePairedItemData(items.length);
 		}
 
 		if (resource === 'document') {
@@ -171,7 +173,10 @@ export class GoogleFirebaseCloudFirestore implements INodeType {
 						.filter((el: IDataObject) => !!el);
 				}
 
-				const executionData = this.helpers.returnJsonArray(responseData as IDataObject[]);
+				const executionData = this.helpers.constructExecutionMetaData(
+					this.helpers.returnJsonArray(responseData as IDataObject[]),
+					{ itemData },
+				);
 
 				returnData.push(...executionData);
 			} else if (operation === 'create') {

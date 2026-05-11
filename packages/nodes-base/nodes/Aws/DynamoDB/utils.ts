@@ -37,7 +37,7 @@ export function adjustExpressionAttributeName(eanUi: IAttributeNameUi[]) {
 	return ean;
 }
 
-export function adjustPutItem(putItemUi: PutItemUi) {
+export function adjustPutItem(putItemUi: PutItemUi, autoParseNumbers = true) {
 	const adjustedPutItem: AdjustedPutItem = {};
 
 	Object.entries(putItemUi).forEach(([attribute, value]) => {
@@ -47,10 +47,10 @@ export function adjustPutItem(putItemUi: PutItemUi) {
 			type = 'BOOL';
 		} else if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
 			type = 'M';
-		} else if (isNaN(Number(value))) {
-			type = 'S';
-		} else {
+		} else if (autoParseNumbers ? !isNaN(Number(value)) : typeof value === 'number') {
 			type = 'N';
+		} else {
+			type = 'S';
 		}
 
 		adjustedPutItem[attribute] = { [type]: value.toString() };
@@ -65,7 +65,7 @@ export function simplify(item: IAttributeValue): IDataObject {
 	for (const [attribute, value] of Object.entries(item)) {
 		const [type, content] = Object.entries(value)[0] as [AttributeValueType, string];
 		//nedded as simplify is used in decodeItem
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+
 		output[attribute] = decodeAttribute(type, content);
 	}
 

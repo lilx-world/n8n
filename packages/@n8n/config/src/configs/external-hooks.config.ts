@@ -1,17 +1,20 @@
+import { ColonSeparatedStringArray } from '../custom-types';
 import { Config, Env } from '../decorators';
-
-class ColonSeparatedStringArray<T extends string = string> extends Array<T> {
-	constructor(str: string) {
-		super();
-		const parsed = str.split(':') as this;
-		const filtered = parsed.filter((i) => typeof i === 'string' && i.length);
-		return filtered.length ? filtered : [];
-	}
-}
 
 @Config
 export class ExternalHooksConfig {
-	/** Files containing external hooks. Multiple files can be separated by colon (":") */
+	/** Separator character for EXTERNAL_HOOK_FILES. Defaults to ':'. Use ';' on Windows. */
+	@Env('EXTERNAL_HOOK_FILES_SEPARATOR')
+	separator: string = ':';
+
+	/** Paths to files that define external lifecycle hooks. Separated by EXTERNAL_HOOK_FILES_SEPARATOR. */
 	@Env('EXTERNAL_HOOK_FILES')
 	files: ColonSeparatedStringArray = [];
+
+	sanitize() {
+		if (this.separator === ':') return;
+
+		const joined = this.files.join(':');
+		this.files = joined.split(this.separator).filter((f) => f.length > 0);
+	}
 }

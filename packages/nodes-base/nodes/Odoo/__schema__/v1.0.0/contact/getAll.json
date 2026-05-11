@@ -4,8 +4,9 @@
         "id": {
             "type": "integer"
         },
-        "display_name": {
+        "name": {
             "type": "string"
         }
-    }
+    },
+    "version": 4
 }
